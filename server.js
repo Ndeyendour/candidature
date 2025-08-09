@@ -6,11 +6,17 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// ✅ CORS configuré pour limiter aux domaines autorisés (comme ton site)
+app.use(cors({
+    origin: ['https://www.ongajdl.org'],
+    methods: ['POST'],
+}));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// 📂 Configuration stockage des fichiers PDF
+// 📂 Configuration stockage des fichiers
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -18,26 +24,27 @@ const upload = multer({ storage });
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
-    secure: false, // true si port 465
+    secure: false,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
     }
 });
 
-// 📩 Route pour recevoir le formulaire
+// 📩 Route pour recevoir le formulaire individuel
 app.post('/submit', upload.fields([{ name: 'cv' }, { name: 'code_conduite' }]), async (req, res) => {
     try {
         const formData = req.body;
         const files = req.files;
 
-        // Format du message
-        let messageHtml = `<h2>Nouvelle Candidature</h2>`;
+        // 🔵 Format du message en tableau HTML
+        let messageHtml = `<h2>Nouvelle Candidature</h2><table border="1" cellpadding="6" cellspacing="0">`;
         for (const key in formData) {
-            messageHtml += `<p><strong>${key}:</strong> ${formData[key]}</p>`;
+            messageHtml += `<tr><td><strong>${key}</strong></td><td>${formData[key]}</td></tr>`;
         }
+        messageHtml += `</table>`;
 
-        // Envoi du mail
+        // 🔵 Envoi du mail
         await transporter.sendMail({
             from: `"Formulaire Candidature" <${process.env.SMTP_USER}>`,
             to: process.env.RECEIVER_EMAIL,
@@ -55,22 +62,25 @@ app.post('/submit', upload.fields([{ name: 'cv' }, { name: 'code_conduite' }]), 
             ]
         });
 
-        res.redirect('https://www.ongajdl.org/index.html'); // redirection après succès
+        res.redirect('https://www.ongajdl.org/index.html');
     } catch (error) {
         console.error(error);
         res.status(500).send('Erreur lors de l’envoi du mail.');
     }
 });
+
 // 📩 Route pour le formulaire organisation
 app.post('/submit-org', upload.single('documents_zip'), async (req, res) => {
     try {
         const formData = req.body;
         const file = req.file;
 
-        let messageHtml = `<h2>Nouvelle candidature d'organisation</h2>`;
+        // 🔵 Format du message en tableau HTML
+        let messageHtml = `<h2>Nouvelle candidature d'organisation</h2><table border="1" cellpadding="6" cellspacing="0">`;
         for (const key in formData) {
-            messageHtml += `<p><strong>${key}:</strong> ${formData[key]}</p>`;
+            messageHtml += `<tr><td><strong>${key}</strong></td><td>${formData[key]}</td></tr>`;
         }
+        messageHtml += `</table>`;
 
         const attachments = file ? [{
             filename: file.originalname,
@@ -92,5 +102,6 @@ app.post('/submit-org', upload.single('documents_zip'), async (req, res) => {
     }
 });
 
-// Lancer serveur
-app.listen(3000, () => console.log('Serveur démarré sur http://localhost:3000'));
+// ✅ Port dynamique pour Render
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Serveur démarré sur http://localhost:${PORT}`));
